@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>The clock</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body style="background-color: black;">
+		<script src="scoreoutputer.min.js"></script>
+		<script>
+			//自評表
+			// 建構子 ScoreOutputer 接受一個字串，該字串為 csv 的檔案名稱
+			// 以下面範例，檔名就為 "109598105(總分: 6).csv"
+			var so = new ScoreOutputer("110598099");
+			so.installCSS(function(){
+				// 安裝 bootstrap 的 css，如果在 html 上方引用 bootstrap 5.1.1 的話就不用使用 installCSS ，注意一定要 bootstrap css 5.1.1 版
+				// installCSS 接收一個 callback 當作參數，作為成功安裝 bootstrap css 的回呼函式
+			
+				//加入項目，分數，完成狀況
+				//第一個參數為 項目名稱
+				//第2個參數為 項目分數
+				//第3個參數為 完成狀況，有完成 true/未完成 false
+				//有幾個項目就呼叫幾個 addChild
+				//addChild 要比 renderModal 先呼叫
+				so.addChild("創建場景", 2, true);
+				so.addChild("讀取字形檔", 2, true);
+				so.addChild("將地支以圓圈排列", 2, true);
+				so.addChild("滑鼠點擊12地支分別跳轉網頁", 1, false);
+				so.addChild('顯示"高等計算機圖型作業"', 1, true);
+				so.addChild("時鐘效果", 1, true);
+				so.addChild("任何ply格式模型", 1, true);
+
+				//產生自評表，參數如下所示
+				so.renderModal(
+					//1. 自評表插入位置 (預設 document.body)
+					document.body,
+					//2. 自評表背景 (預設紅色)
+					'rgba(100,45,58,1)', 
+					//3. 自評表文字顏色 (預設白色)
+					'white', 
+					//4. 自評表文字大小 (預設 14pt)
+					'15pt', 
+					//5. 自評表 checkbox 文字大小 (預設多少忘了)
+					'15px', 
+					//6. 自評表標題 (預設 "自我評分表")
+					'自我評分表 (助教評分用)'
+				);
+				
+				//設定下載按鈕 <-- 一定要呼叫這個函數，不然沒有下載功能
+				so.installDownloadBtn();
+				
+				//產生 "開啟自評表按鈕"
+				so.renderBtn(
+					//自評表按鈕插入位置
+					document.body,
+					//自評表按鈕文字
+					"開啟自評表"
+				);
+			});
+		</script>
+		
+		<script type="module">
+			import * as THREE from './three.module.js';
+			import { TTFLoader } from './TTFLoader.js';
+			import { PLYLoader } from './PLYLoader.js';
+
+			var fontttf ="./POP.ttf";
+			let container;
+			let camera, cameraTarget, scene, renderer;
+			let group, material;
+			let textGeo, textMesh, material2;
+			let textsGeo = [];
+			let textsMesh = [];
+			let firstLetter = true;
+			let group_cylinder_sec, group_cylinder_min, group_cylinder_hour;
+			let group_texts;
+			let today = new Date();
+			let seconds, minutes, hours;
+			var raycaster;
+			let mouse;
+			let mesh_ply;
+			let PLYisFinished = false;
+
+			let text = '高等計算機圖學作業';
+			let texts = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']; 
+			const height = 1,
+				size = 20,
+				hover = 30,
+				curveSegments = 4,
+				bevelThickness = 4,
+				bevelSize = 1.0;
+
+			let font = null;
+
+			let targetRotation = 0;
+			let targetRotationOnPointerDown = 0;
+
+			let pointerX = 0;
+			let pointerXOnPointerDown = 0;
+
+			let windowHalfX = window.innerWidth / 2;
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				// CAMERA
+
+				camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 2000 );
+				camera.position.set( 0, 350, 1000 );
+
+				cameraTarget = new THREE.Vector3( 0, 30, 0);
+
+				// SCENE
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0x000000 );
+
+				// LIGHTS
+
+				const dirLight = new THREE.DirectionalLight( 0xffffff, 0.125 );
+				dirLight.position.set( 0, 0, 1 ).normalize();
+				scene.add( dirLight );
+
+				const pointLight = new THREE.PointLight( 0xffffff, 1.5 );
+				pointLight.position.set( 0, 100, 90 );
+				scene.add( pointLight );
+
+
+				material = new THREE.MeshLambertMaterial( { color: 0x46a3ff } );
+
+				group = new THREE.Group();
+				group.position.y = 100;
+
+				scene.add( group );
+
+				//Circle
+
+				const geometry_c = new THREE.CircleGeometry( 100,96 );
+				const material_c = new THREE.MeshBasicMaterial( { color: 0x53adff, opacity: 0.5, transparent: true } );
+				const circle = new THREE.Mesh( geometry_c, material_c );
+				circle.position.set(0, 0, 0);
+				group.add( circle );
+
+				//Plane
+				const geometry_p = new THREE.PlaneGeometry( 800, 800 );
+				const material_p = new THREE.MeshBasicMaterial( {color:  0xececff, transparent: false } );
+				const plane = new THREE.Mesh( geometry_p, material_p );
+				plane.position.set(0, -200, -200);
+				plane.rotation.set(-Math.PI / 2, 0, 0);
+				group.add( plane );
+
+				//cylinder
+				//hour
+				group_cylinder_hour = new THREE.Group();
+				group.add( group_cylinder_hour );
+
+				const geometry_hour = new THREE.CylinderGeometry( 4, 4, 30, 4 );
+				const material_time = new THREE.MeshBasicMaterial( {color: 0x53adff} );
+				const cylinder_hour = new THREE.Mesh( geometry_hour, material_time );
+				cylinder_hour.position.set(0, 15, 0);
+				group_cylinder_hour.add( cylinder_hour );
+				hours = today.getHours();
+				group_cylinder_hour.rotation.set(0, 0, - 2*Math.PI / 12 * hours);
+
+				//minute
+				group_cylinder_min = new THREE.Group();
+				group.add( group_cylinder_min );
+
+				const geometry_min = new THREE.CylinderGeometry( 2, 2, 50, 4 );
+				const cylinder_min = new THREE.Mesh( geometry_min, material_time );
+				cylinder_min.position.set(0, 25, 0);
+				group_cylinder_min.add( cylinder_min );
+				minutes = today.getMinutes();
+				group_cylinder_min.rotation.set(0, 0, - 2*Math.PI / 60 * minutes);
+
+				//second
+				group_cylinder_sec = new THREE.Group();
+				group.add( group_cylinder_sec );
+
+				const geometry_sec = new THREE.CylinderGeometry( 1, 1, 50, 4 );
+				const cylinder_sec = new THREE.Mesh( geometry_sec, material_time );
+				cylinder_sec.position.set(0, 25, 0);
+				group_cylinder_sec.add( cylinder_sec );
+				seconds = today.getSeconds();
+				group_cylinder_sec.rotation.set(0, 0, - 2*Math.PI / 60 * seconds);
+				
+				//createText
+
+				const loader = new TTFLoader();
+				loader.load( fontttf, function ( json ) {
+					console.log(json)
+					font = new THREE.Font( json );
+					createText();
+				} );
+
+				//PLY
+
+				const loaderPLY = new PLYLoader();
+				const material_ply = new THREE.MeshLambertMaterial({ color: 0xffb3ff })
+				loaderPLY.load(
+					'./bunny.ply',
+					function (geometry) {
+						geometry.computeVertexNormals();
+						mesh_ply = new THREE.Mesh(geometry, material_ply);
+						mesh_ply.position.set(0, -180, -200);
+						mesh_ply.scale.set(200, 200, 200);
+						group.add(mesh_ply);
+					},
+					(xhr) => {
+						console.log((xhr.loaded / xhr.total) * 100 + '% loaded')
+						if(xhr.loaded / xhr.total == 1)
+							PLYisFinished = true;
+					},
+					(error) => {
+						console.log(error)
+					}
+				)
+
+				// RENDERER
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				// EVENTS
+
+				container.style.touchAction = 'none';
+				container.addEventListener( 'pointerdown', onPointerDown );
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function createText() {
+
+				group_texts = new THREE.Group();
+				group.add( group_texts );
+
+				for(let i = 0; i <= 11; i++){
+					textsGeo[i] = new THREE.TextGeometry( texts[i], {
+
+						font: font,
+
+						size: size,
+						height: height,
+						curveSegments: curveSegments,
+
+						bevelThickness: bevelThickness,
+						bevelSize: bevelSize,
+						bevelEnabled: true
+
+					} );
+
+					textsMesh[i] = new THREE.Mesh( textsGeo[i], material );
+					//圓的中心點在(0, 0, 0)，文字的中心點調整到(-15, -10, 0)
+					textsMesh[i].position.set(-15 + 80 * Math.sin( 2*Math.PI / 12 * i), -10 + 80 * Math.cos( 2*Math.PI / 12 * i), 0);
+
+					group_texts.add( textsMesh[i] );
+				}
+				textGeo = new THREE.TextGeometry( text, {
+
+					font: font,
+					size: 40,
+					height: 5
+
+				} );
+				material2 = new THREE.MeshLambertMaterial( { color: 0x6a6aff } );
+				textMesh = new THREE.Mesh( textGeo, material2 );
+				textMesh.position.set(-250, -200, 0);
+				textMesh.rotation.set(-Math.PI / 2, 0, 0);
+				group.add( textMesh );
+
+			}
+
+			function onPointerDown( event ) {
+
+				if ( event.isPrimary === false ) return;
+
+				pointerXOnPointerDown = event.clientX - windowHalfX;
+				targetRotationOnPointerDown = targetRotation;
+
+				document.addEventListener( 'pointermove', onPointerMove );
+				document.addEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			function onPointerMove( event ) {
+
+				if ( event.isPrimary === false ) return;
+
+				pointerX = event.clientX - windowHalfX;
+
+				targetRotation = targetRotationOnPointerDown + ( pointerX - pointerXOnPointerDown ) * 0.02;
+
+			}
+
+			function onPointerUp() {
+
+				if ( event.isPrimary === false ) return;
+
+				document.removeEventListener( 'pointermove', onPointerMove );
+				document.removeEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			function animate() {
+			
+				requestAnimationFrame( animate );
+				today = new Date();
+
+				group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
+				group_cylinder_sec.rotation.z = - 2*Math.PI / 60 * today.getSeconds();
+				group_cylinder_min.rotation.z = - 2*Math.PI / 60 * today.getMinutes();
+				group_cylinder_hour.rotation.z = - 2*Math.PI / 12 * today.getHours() - 2*Math.PI / (12*60) * today.getMinutes();
+
+				camera.lookAt( cameraTarget );
+
+				if( PLYisFinished )
+				{
+					if( today.getSeconds() >= 0 &&  today.getSeconds() <= 5)
+					{
+						mesh_ply.position.x += 0.2;
+					}
+					if( today.getSeconds() >= 6 &&  today.getSeconds() <= 10)
+					{
+						mesh_ply.position.x += 0.2;
+						mesh_ply.position.z += 0.2;
+					}
+					if( today.getSeconds() >= 11 &&  today.getSeconds() <= 15)
+					{
+						mesh_ply.position.x -= 0.2;
+						mesh_ply.position.z += 0.2;
+					}
+					if( today.getSeconds() >= 16 &&  today.getSeconds() <= 20)
+					{
+						mesh_ply.position.x -= 0.2;
+					}
+					if( today.getSeconds() >= 21 &&  today.getSeconds() <= 25)
+					{
+						mesh_ply.position.x -= 0.2;
+						mesh_ply.position.z -= 0.2;
+					}
+					if( today.getSeconds() >= 26 &&  today.getSeconds() <= 30)
+					{
+						mesh_ply.position.x += 0.2;
+						mesh_ply.position.z -= 0.2;
+					}
+
+					if( today.getSeconds() >= 31 &&  today.getSeconds() <= 35)
+					{
+						mesh_ply.position.x += 0.2;
+					}
+					if( today.getSeconds() >= 36 &&  today.getSeconds() <= 40)
+					{
+						mesh_ply.position.x += 0.2;
+						mesh_ply.position.z += 0.2;
+					}
+					if( today.getSeconds() >= 41 &&  today.getSeconds() <= 45)
+					{
+						mesh_ply.position.x -= 0.2;
+						mesh_ply.position.z += 0.2;
+					}
+					if( today.getSeconds() >= 46 &&  today.getSeconds() <= 50)
+					{
+						mesh_ply.position.x -= 0.2;
+					}
+					if( today.getSeconds() >= 51 &&  today.getSeconds() <= 55)
+					{
+						mesh_ply.position.x -= 0.2;
+						mesh_ply.position.z -= 0.2;
+					}
+					if( today.getSeconds() >= 56 &&  today.getSeconds() <= 59)
+					{
+						mesh_ply.position.x += 0.2;
+						mesh_ply.position.z -= 0.2;
+					}
+				}
+
+				renderer.render( scene, camera );
+			}
+
+		</script>
+
+	</body>
+</html>
