@@ -7,6 +7,7 @@
 		<link type="text/css" rel="stylesheet" href="main.css">
 	</head>
 	<body style="background-color: black;">
+		<div id="info"></div>
 		<script src="scoreoutputer.min.js"></script>
 		<script>
 			//自評表
@@ -53,7 +54,7 @@
 				//產生 "開啟自評表按鈕"
 				so.renderBtn(
 					//自評表按鈕插入位置
-					document.body,
+					document.querySelector("#info"),
 					//自評表按鈕文字
 					"開啟自評表"
 				);
@@ -81,6 +82,9 @@
 			let mouse;
 			let mesh_ply;
 			let PLYisFinished = false;
+			let bunny_moveType = 0;
+			let bunny_move_x = 0.8, bunny_move_z = 0.6;
+
 
 			let text = '高等計算機圖學作業';
 			let texts = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']; 
@@ -335,62 +339,54 @@
 
 				if( PLYisFinished )
 				{
-					if( today.getSeconds() >= 0 &&  today.getSeconds() <= 5)
+					if(bunny_moveType == 0)
 					{
-						mesh_ply.position.x += 0.2;
+						mesh_ply.position.x += bunny_move_x;
+						mesh_ply.position.z += bunny_move_z;
 					}
-					if( today.getSeconds() >= 6 &&  today.getSeconds() <= 10)
+					else if(bunny_moveType == 1)
 					{
-						mesh_ply.position.x += 0.2;
-						mesh_ply.position.z += 0.2;
+						mesh_ply.position.x -= bunny_move_x;
+						mesh_ply.position.z += bunny_move_z;
 					}
-					if( today.getSeconds() >= 11 &&  today.getSeconds() <= 15)
+					else if(bunny_moveType == 2)
 					{
-						mesh_ply.position.x -= 0.2;
-						mesh_ply.position.z += 0.2;
+						mesh_ply.position.x -= bunny_move_x;
+						mesh_ply.position.z -= bunny_move_z;
 					}
-					if( today.getSeconds() >= 16 &&  today.getSeconds() <= 20)
+					else if(bunny_moveType == 3)
 					{
-						mesh_ply.position.x -= 0.2;
-					}
-					if( today.getSeconds() >= 21 &&  today.getSeconds() <= 25)
-					{
-						mesh_ply.position.x -= 0.2;
-						mesh_ply.position.z -= 0.2;
-					}
-					if( today.getSeconds() >= 26 &&  today.getSeconds() <= 30)
-					{
-						mesh_ply.position.x += 0.2;
-						mesh_ply.position.z -= 0.2;
+						mesh_ply.position.x += bunny_move_x;
+						mesh_ply.position.z -= bunny_move_z;
 					}
 
-					if( today.getSeconds() >= 31 &&  today.getSeconds() <= 35)
+					if(mesh_ply.position.x >= 380)
 					{
-						mesh_ply.position.x += 0.2;
+						if(bunny_moveType == 0)
+							bunny_moveType = 1;
+						else
+							bunny_moveType = 2;
 					}
-					if( today.getSeconds() >= 36 &&  today.getSeconds() <= 40)
+					else if(mesh_ply.position.z >= 220)
 					{
-						mesh_ply.position.x += 0.2;
-						mesh_ply.position.z += 0.2;
+						if(bunny_moveType == 0)
+							bunny_moveType = 3;
+						else
+							bunny_moveType = 2;
 					}
-					if( today.getSeconds() >= 41 &&  today.getSeconds() <= 45)
+					else if(mesh_ply.position.x <= -380)
 					{
-						mesh_ply.position.x -= 0.2;
-						mesh_ply.position.z += 0.2;
+						if(bunny_moveType == 2)
+							bunny_moveType = 3;
+						else
+							bunny_moveType = 0;
 					}
-					if( today.getSeconds() >= 46 &&  today.getSeconds() <= 50)
+					else if(mesh_ply.position.z <= -530)
 					{
-						mesh_ply.position.x -= 0.2;
-					}
-					if( today.getSeconds() >= 51 &&  today.getSeconds() <= 55)
-					{
-						mesh_ply.position.x -= 0.2;
-						mesh_ply.position.z -= 0.2;
-					}
-					if( today.getSeconds() >= 56 &&  today.getSeconds() <= 59)
-					{
-						mesh_ply.position.x += 0.2;
-						mesh_ply.position.z -= 0.2;
+						if(bunny_moveType == 2)
+							bunny_moveType = 1;
+						else
+							bunny_moveType = 0;
 					}
 				}
 
